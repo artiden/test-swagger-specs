@@ -1,0 +1,35 @@
+name: Publish OpenAPI spec
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - run: yarn install
+      - run: yarn apispecs:generate
+      - name: Checkout API specs repo
+        uses: actions/checkout@v4
+        with:
+          repository: artiden/api-specs
+          path: api-specs
+          token: ${{ secrets.CID_PUBLISHER_TOKEN }}
+      - name: Copy Swagger spec
+        run: |
+          mkdir -p api-specs/${{ github.event.repository.name }}
+          cp openapi.json api-specs/${{ github.event.repository.name }}/openapi.json
+      - name: Commit & Push
+        run: |
+          cd api-specs
+          git config user.name "API-specs publisher"
+          git config user.email "ci@weridex.com"
+          git add .
+          git diff-index --quiet HEAD || git commit -m "Update Fluentd-ws-gateway OpenAPI spec"
+          git push

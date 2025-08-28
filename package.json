@@ -8,7 +8,7 @@
   "license": "UNLICENSED",
   "main": "dist/index.js",
   "scripts": {
-    "apispec:generate": "ts-node generate-api-spec.ts",
+    "apispecs:generate": "ts-node generate-api-spec.ts",
     "build": "rm -rf dist/* && ./node_modules/.bin/tsc",
     "lint": "eslint --no-cache \"src/**/*.ts\" \"tests/**/*.ts\"",
     "lint:fix": "eslint --fix --no-cache \"src/**/*.ts\" \"tests/**/*.ts\"",
