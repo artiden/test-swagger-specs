@@ -1,9 +1,0 @@
-{
-    "root": true,
-    "extends": "./node_modules/whow-project-settings/eslint/.eslintrc.json",
-    "parserOptions": {
-        "project": "./tsconfig.eslint.json",
-        "sourceType": "module",
-        "ecmaVersion": "latest"
-    }
-}
