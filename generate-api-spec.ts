@@ -6,15 +6,15 @@ const options = {
   definition: {
     openapi: '3.0.3',
     info: {
-      title: 'Fluentd-ws-gateway service API',
+      title: 'test Swagger specs',
       version: '1.0.0',
-      description: 'API of Fluentd-ws-gateway service',
+      description: 'API of test-openapi-specs service',
     },
     servers: [
-      { url: 'http://localhost:300' },
+      { url: 'http://localhost:3000' },
     ],
   },
-  apis: ['./src/*.ts'], // путь к файлам с JSDoc
+  apis: ['./src/*.ts'],
 };
 
 const swaggerSpec = swaggerJSDoc(options);

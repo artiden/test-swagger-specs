@@ -1,5 +1,4 @@
 {
-  //"extends": "./node_modules/whow-project-settings/tsconfig/backend.default.json",
   "compilerOptions": {
     "outDir": "./dist",
     "module": "commonjs",

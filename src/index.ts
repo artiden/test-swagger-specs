@@ -1,126 +1,96 @@
-import * as cluster from 'cluster';
+import express, { Request, Response } from "express";
 
-import { EventMessage, EventMessageType } from './types';
+const app = express();
+app.use(express.json());
 
-import { startWorker } from './worker';
-import config from './config';
-import crypto from 'crypto';
-import net from 'net';
-import os from 'os';
+/**
+ * @openapi
+ * /hello:
+ *   get:
+ *     summary: Returns a simple hello message
+ *     responses:
+ *       200:
+ *         description: A hello message
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Hello, world!
+ */
+app.get("/hello", (req: Request, res: Response) => {
+  res.json({ message: "Hello, world!" });
+});
 
-const cfg = config;
+/**
+ * @openapi
+ * /user/{id}:
+ *   get:
+ *     summary: Get user by ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: A user object
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   example: "123"
+ *                 name:
+ *                   type: string
+ *                   example: "John Doe"
+ */
+app.get("/user/:id", (req: Request, res: Response) => {
+  res.json({ id: req.params.id, name: "John Doe" });
+});
 
-// For clustered servers selection
-let workerIds: string[] = [];
-const rebuildWorkerIds = () => {
-    workerIds = Object.keys(cluster.default.workers ?? {})
-        .filter(id => {
-            const w = cluster.default.workers?.[id];
+/**
+ * @openapi
+ * /user:
+ *   post:
+ *     summary: Create a new user
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Jane Doe
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   example: "456"
+ *                 name:
+ *                   type: string
+ *                   example: "Jane Doe"
+ */
+app.post("/user", (req: Request, res: Response) => {
+  const { name } = req.body as { name: string };
+  res.status(201).json({ id: "456", name });
+});
 
-            return !!w && w.isConnected();
-        })
-        .sort((a, b) => Number(a) - Number(b));
-};
-
-const hashToU32 = (key: string): number => {
-    const buffer = crypto.createHash('sha1').update(key).digest();
-
-    return buffer.readUInt32BE(0);
-};
-
-const getClientKey = (socket: net.Socket): string => {
-    return (socket.remoteAddress ?? '0.0.0.0').replace('::ffff:', '');
-};
-
-const pickWorkerByKey = (key: string): cluster.Worker | undefined => {
-    const workerCount = workerIds.length;
-    if (!workerCount) {
-        return undefined;
-    }
-
-    const index = hashToU32(key) % workerCount;
-    const targetId = workerIds[index];
-
-    return cluster.default.workers?.[targetId];
-};
-
-if (cfg.cluster.enabled && cluster.default.isPrimary) {
-    const cpus = Math.max(1, os.cpus().length);
-    console.log(`Master ${process.pid} - forking ${cpus} workers`);
-
-    const wire = (w: cluster.Worker) => {
-        w.on('message', (msg: EventMessage) => {
-            for (const id in cluster.default.workers) {
-                const wk = cluster.default.workers[id];
-                if (wk && wk.isConnected()) {
-                    wk.send({
-                        type: EventMessageType.Event,
-                        payload: msg.payload,
-                    });
-                }
-            }
-        });
-    };
-
-    const forkOne = () => {
-        const w = cluster.default.fork({
-            ...process.env,
-        });
-        wire(w);
-
-        return w;
-    };
-
-    for (let i = 0; i < cpus; i++) {
-        forkOne();
-    }
-
-    rebuildWorkerIds();
-
-    const server = net.createServer(
-        {
-            pauseOnConnect: true,
-        },
-        (socket: net.Socket) => {
-            const clientKey = getClientKey(socket);
-
-            const targetWorker = pickWorkerByKey(clientKey);
-
-            if (targetWorker && targetWorker.isConnected()) {
-                targetWorker.send(
-                    {
-                        type: EventMessageType.StickyConnection,
-                    },
-                    socket,
-                );
-            } else {
-                socket.destroy();
-            }
-        },
-    );
-
-    server.listen(cfg.server.wsPort, () => {
-        console.log(`Master ${process.pid} WS sticky @ ${cfg.server.wsPort}${cfg.server.wsPath}`);
-    });
-
-    cluster.default.on('exit', (worker: cluster.Worker) => {
-        cfg.app.logsEnabled && console.warn(`Worker ${worker.process.pid} exited, respawning`);
-
-        wire(
-            cluster.default.fork({
-                ...process.env,
-            }),
-        );
-
-        rebuildWorkerIds();
-    });
-
-    cluster.default.on(`online`, rebuildWorkerIds);
-    cluster.default.on(`listening`, rebuildWorkerIds);
-    cluster.default.on(`disconnect`, rebuildWorkerIds);
-} else {
-    startWorker().catch(err => {
-        console.error('worker error', err);
-        process.exit(1);
-    });
-}
+app.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
+});
